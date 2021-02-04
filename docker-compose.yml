@@ -1,0 +1,53 @@
+version: "3.8"
+
+x-env: &x-env
+  env_file:
+    - deploys/prod.env
+
+services:
+  elasticsearch:
+    image: elasticsearch:7.10.1
+    environment:
+      discovery.type: "single-node"
+    ports:
+      - 9200:9200
+    volumes:
+      - elasticdb:/usr/share/elasticsearch/data
+
+  redis:
+    image: redis:6-alpine
+    restart: always
+    volumes:
+      - redisdata:/data
+
+  etl:
+    image: nikitak/praktikum-etl-sprint-2.5:latest
+    <<: *x-env
+    depends_on:
+      - elasticsearch
+      - redis
+
+  search_api:
+    build: .
+    <<: *x-env
+    depends_on:
+      - elasticsearch
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:12.1
+    restart: always
+    <<: *x-env
+    environment:
+      POSTGRES_PASSWORD: devpass
+    volumes:
+      - postgresdb:/var/lib/postgresql/data
+      - ./postgres_init:/docker-entrypoint-initdb.d
+    ports:
+      - 5431:5432
+
+volumes:
+  elasticdb:
+  redisdata:
+  postgresdb:

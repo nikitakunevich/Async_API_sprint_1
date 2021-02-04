@@ -1,6 +1,8 @@
+from typing import Optional
+
 from aioredis import Redis
 
-redis: Redis = None
+redis: Optional[Redis] = None
 
 
 # Функция понадобится при внедрении зависимостей
