@@ -34,6 +34,8 @@ services:
       - elasticsearch
       - postgres
       - redis
+    ports:
+    - "8888:8888"
 
   postgres:
     image: postgres:12.1
