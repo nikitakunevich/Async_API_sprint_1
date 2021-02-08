@@ -4,3 +4,4 @@ elasticsearch[async]==7.10.1
 pydantic==1.7.3
 orjson==3.4.7
 uvicorn==0.13.3
+elasticsearch-dsl==7.3.0

@@ -1,18 +1,22 @@
 from http import HTTPStatus
-from typing import List
+from typing import List, Optional
+from uuid import UUID
+import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from services.film import FilmService, get_film_service
+import models.film
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-class Film(BaseModel):
+class FilmShort(BaseModel):
     uuid: str
     title: str
-    imdb_rating: float
+    imdb_rating: Optional[float]
 
 
 class Genre(BaseModel):
@@ -35,28 +39,51 @@ class PersonShort(BaseModel):
 class FilmDetails(BaseModel):
     uuid: str
     title: str
-    imdb_rating: float
-    description: str
+    imdb_rating: Optional[float]
+    description: Optional[str]
     genre: List[Genre]
-    actors: List[Person]
-    writers: List[Person]
-    directors: List[Person]
+    actors: List[PersonShort]
+    writers: List[PersonShort]
+    directors: List[PersonShort]
+
+    @classmethod
+    def from_film(cls, film: models.film.Film):
+        return cls(
+            uuid=film.id,
+            title=film.title,
+            imdb_rating=film.imdb_rating,
+            description=film.description,
+            genre=[Genre(uuid=genre.id, name=genre.name) for genre in film.genres],
+            actors=[PersonShort(uuid=person.id, full_name=person.name) for person in film.actors],
+            writers=[PersonShort(uuid=person.id, full_name=person.name) for person in film.writers],
+            directors=[PersonShort(uuid=person.id, full_name=person.name) for person in film.directors]
+
+        )
 
 
-# Внедряем FilmService с помощью Depends(get_film_service)
-@router.get('/{film_id}', response_model=Film)
-async def film_details(film_id: str, film_service: FilmService = Depends(get_film_service)) -> Film:
-    film = await film_service.get_by_id(film_id)
+@router.get('/{film_id:uuid}', response_model=FilmDetails)
+async def film_details(film_id: UUID, film_service: FilmService = Depends(get_film_service)) -> FilmDetails:
+    film = await film_service.get_by_id(str(film_id))
     if not film:
-        # Если фильм не найден, отдаём 404 статус
-        # Желательно пользоваться уже определёнными HTTP-статусами, которые содержат enum
-        # Такой код будет более поддерживаемым
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='film not found')
 
-    # Перекладываем данные из models.Film в Film
-    # Обратите внимание, что у модели бизнес-логики есть поле description
-    # Которое отсутствует в модели ответа API.
-    # Если бы использовалась общая модель для бизнес-логики и формирования ответов API
-    # вы бы предоставляли клиентам данные, которые им не нужны
-    # и, возможно, данные, которые опасно возвращать
-    return Film(uuid=film.id, title=film.title, imdb_rating=film.imdb_rating)
+    return FilmDetails.from_film(film)
+
+
+@router.get('/', response_model=List[FilmShort])
+async def film_search(
+        query: Optional[str] = Query(""),
+        filter_genre: Optional[UUID] = Query(None, alias='filter[genre]'),
+        sort: Optional[str] = Query(None, regex='^-?[a-zA-Z_]+$'),
+        page_number: int = Query(1, alias='page[number]'),
+        page_size: int = Query(50, alias='page[size]'),
+
+        film_service: FilmService = Depends(get_film_service)) -> List[FilmShort]:
+    films = await film_service.search(
+        search_query=query,
+        sort=sort,
+        filter_genre=str(filter_genre) if filter_genre else None, page_size=page_size, page_number=page_number)
+    if not films:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='film not found')
+
+    return [FilmShort(uuid=film.id, title=film.title, imdb_rating=film.imdb_rating) for film in films]
