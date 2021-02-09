@@ -1,10 +1,7 @@
+import os
+
 LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 LOG_DEFAULT_HANDLERS = ['console', ]
-
-# В логгере настраивается логгирование uvicorn-сервера.
-# Про логирование в Python можно прочитать в документации
-# https://docs.python.org/3/howto/logging.html
-# https://docs.python.org/3/howto/logging-cookbook.html
 
 LOGGING = {
     'version': 1,
@@ -41,10 +38,6 @@ LOGGING = {
         },
     },
     'loggers': {
-        '': {
-            'handlers': LOG_DEFAULT_HANDLERS,
-            'level': 'INFO',
-        },
         'uvicorn.error': {
             'level': 'INFO',
         },
@@ -55,7 +48,7 @@ LOGGING = {
         },
     },
     'root': {
-        'level': 'INFO',
+        'level': os.environ.get('LOG_LEVEL'),
         'formatter': 'verbose',
         'handlers': LOG_DEFAULT_HANDLERS,
     },
