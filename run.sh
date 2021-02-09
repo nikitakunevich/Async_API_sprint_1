@@ -1,26 +1,44 @@
-set -a
-. deploys/prod.env
-set +a
+
+ENV_FILE="deploys/prod.env"
 
 case $1 in
   rebuild)
-    docker-compose build search_api
+    COMMAND="docker-compose build search_api"
   ;;
-
   start)
-    ./run.sh stop
-    ./run.sh rebuild
-    docker-compose up postgres redis elasticsearch search_api
+    COMMAND="./run.sh stop; ./run.sh rebuild; docker-compose up postgres redis elasticsearch search_api"
   ;;
   load_es_index)
-    curl  -XPUT http://localhost:9200/movies -H 'Content-Type: application/json' -d @es.schema.json
+    COMMAND="curl  -XPUT http://localhost:9200/movies -H 'Content-Type: application/json' -d @es.schema.json"
   ;;
   start_etl)
-    docker-compose up etl
+    COMMAND="docker-compose up etl"
+  ;;
+  run)
+    COMMAND="cd src; python3 main.py"
+  ;;
+  run-environment)
+    COMMAND="docker-compose up -d postgres redis elasticsearch etl"
   ;;
   stop)
-    docker-compose down -v --remove-orphans
+    COMMAND="docker-compose down -v --remove-orphans"
   ;;
   *)
     echo "Use 'start' command"
 esac
+
+shift
+
+case $1 in
+  -env|--env-file)
+    ENV_FILE=$2
+  ;;
+esac
+
+echo "ENV FILE - $ENV_FILE"
+set -a
+. $ENV_FILE
+set +a
+
+echo $COMMAND
+bash -c "$COMMAND"
