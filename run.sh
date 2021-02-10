@@ -14,11 +14,11 @@ case $1 in
   start_etl)
     COMMAND="docker-compose up etl"
   ;;
-  run)
+  start-local)
     COMMAND="cd src; python3 main.py"
   ;;
-  run-environment)
-    COMMAND="docker-compose up -d postgres redis elasticsearch etl"
+  start-environment)
+    COMMAND="./run.sh stop; docker-compose up -d postgres redis elasticsearch etl"
   ;;
   stop)
     COMMAND="docker-compose down -v --remove-orphans"

@@ -32,11 +32,11 @@
 
 Чтобы поднять окружение
 
-```./run.sh run-environment```
+```./run.sh start-environment```
 
 Чтобы поднять приложение
 
-```./run.sh run```
+```./run.sh start-local```
 
 
 Теперь на **8000** порту будет fastapi-приложение
