@@ -79,11 +79,11 @@ async def film_search(
         page_size: int = Query(50, alias='page[size]'),
 
         film_service: FilmService = Depends(get_film_service)) -> List[FilmShort]:
-    films = await film_service.search(
+    films: models.film.Films = await film_service.search(
         search_query=query,
         sort=sort,
         filter_genre=str(filter_genre) if filter_genre else None, page_size=page_size, page_number=page_number)
-    if not films:
+    if not films.films:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='film not found')
 
-    return [FilmShort(uuid=film.id, title=film.title, imdb_rating=film.imdb_rating) for film in films]
+    return [FilmShort(uuid=film.id, title=film.title, imdb_rating=film.imdb_rating) for film in films.films]
