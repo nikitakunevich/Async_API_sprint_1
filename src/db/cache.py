@@ -1,8 +1,12 @@
 
-from typing import Any, Optional
+from typing import Any, List, Optional, Type
 from aioredis import Redis
 import logging
-from models.film import Film, Films
+
+import json
+from pydantic import BaseModel
+from pydantic.tools import parse_raw_as
+from models.film import Film
 
 logger = logging.getLogger(__name__)
 
@@ -32,35 +36,32 @@ class Cache:
         await self._redis.set(full_key, value, expire=self._ttl)
 
 
-    async def __getitem__(self, key: str) -> Any:
-        return await self.get(key)
+class ModelCache(Cache):
+    def __init__(self, redis: Redis, model: Type[BaseModel], ttl: int) -> None:
+        self._model = model
+        super().__init__(redis, path=model.__name__, expire=ttl)
 
-
-class FilmCache(Cache):
-    def __init__(self, redis: Redis, path: str, ttl: int) -> None:
-        super().__init__(redis, path=path, expire=ttl)
-
-    def parse_raw_film(self, data: Optional[str]) -> Optional[Film]:
+    def parse_raw_model(self, data: Optional[str]) -> Optional[BaseModel]:
         if not data:
             return None
-        return Film.parse_raw(data)
+        return self._model.parse_raw(data)
 
     async def get_by_id(self, film_id: str) -> Optional[Film]:
         key = f'id:{film_id}'
         data = await self.get(key)
-        return self.parse_raw_film(data)
+        return self.parse_raw_model(data)
 
     async def set_by_id(self, film_id: str, value: Film) -> None:
         key = f'id:{film_id}'
         await self.set(key=key, value=value.json())
 
-    async def get_by_elastic_query(self, query_elastic: dict) -> Optional[Films]:
+    async def get_by_elastic_query(self, query_elastic: dict) -> Optional[BaseModel]:
         key = f'query:{str(query_elastic)}'
         data = await self.get(key)
         if not data:
             return None
-        return Films.parse_raw(data)
+        return parse_raw_as(List[self._model], data)
 
-    async def set_by_elastic_query(self, query_elastic: dict, values: Films) -> None:
+    async def set_by_elastic_query(self, query_elastic: dict, values: List[BaseModel]) -> None:
         key = f'query:{str(query_elastic)}'
-        await self.set(key=key, value=values.json())
+        await self.set(key=key, value=json.dumps([value.dict() for value in values]))

@@ -8,18 +8,18 @@ from aioredis import Redis
 from elasticsearch import AsyncElasticsearch
 from elasticsearch_dsl import Search, Q
 from fastapi import Depends
-from db.cache import FilmCache
+from db.cache import ModelCache
 
 from db.elastic import get_elastic
 from db.redis import get_redis
-from models.film import Film, Films
+from models.film import Film
 
 logger = logging.getLogger(__name__)
 FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5
 
 
 class FilmService:
-    def __init__(self, cache: FilmCache, elastic: AsyncElasticsearch):
+    def __init__(self, cache: ModelCache, elastic: AsyncElasticsearch):
         self.cache = cache
         self.elastic = elastic
 
@@ -44,7 +44,6 @@ class FilmService:
         if not films:
             results = await self.elastic.search(index='movies', body=query)
             films = [Film(**hit['_source']) for hit in results['hits']['hits']]
-            films = Films(films=films)
             await self.cache.set_by_elastic_query(query, films)
         return films
 
@@ -71,7 +70,7 @@ def get_film_service(
         redis: Redis = Depends(get_redis),
         elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> FilmService:
-    return FilmService(FilmCache(redis, 'film', FILM_CACHE_EXPIRE_IN_SECONDS), elastic)
+    return FilmService(ModelCache(redis, Film, FILM_CACHE_EXPIRE_IN_SECONDS), elastic)
 
 
 T = TypeVar('T')
