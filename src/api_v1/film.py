@@ -1,64 +1,14 @@
+import logging
 from http import HTTPStatus
 from typing import List, Optional
 from uuid import UUID
-import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
-
+from schemas.film import FilmDetails, FilmShort
 from services.film import FilmService, get_film_service
-import models.film
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-class FilmShort(BaseModel):
-    uuid: str
-    title: str
-    imdb_rating: Optional[float]
-
-
-class Genre(BaseModel):
-    uuid: str
-    name: str
-
-
-class Person(BaseModel):
-    uuid: str
-    full_name: str
-    role: str
-    film_ids: List[str]
-
-
-class PersonShort(BaseModel):
-    uuid: str
-    full_name: str
-
-
-class FilmDetails(BaseModel):
-    uuid: str
-    title: str
-    imdb_rating: Optional[float]
-    description: Optional[str]
-    genre: List[Genre]
-    actors: List[PersonShort]
-    writers: List[PersonShort]
-    directors: List[PersonShort]
-
-    @classmethod
-    def from_film(cls, film: models.film.Film):
-        return cls(
-            uuid=film.id,
-            title=film.title,
-            imdb_rating=film.imdb_rating,
-            description=film.description,
-            genre=[Genre(uuid=genre.id, name=genre.name) for genre in film.genres],
-            actors=[PersonShort(uuid=person.id, full_name=person.name) for person in film.actors],
-            writers=[PersonShort(uuid=person.id, full_name=person.name) for person in film.writers],
-            directors=[PersonShort(uuid=person.id, full_name=person.name) for person in film.directors]
-
-        )
 
 
 @router.get('/{film_id:uuid}', response_model=FilmDetails)
