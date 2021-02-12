@@ -31,8 +31,6 @@ class Cache:
         logger.debug(f"Set cache with {key=}")
         await self._redis.set(full_key, value, expire=self._ttl)
 
-    async def __setitem__(self, key: str, value: Any) -> None:
-        await self.set(key, value)
 
     async def __getitem__(self, key: str) -> Any:
         return await self.get(key)
