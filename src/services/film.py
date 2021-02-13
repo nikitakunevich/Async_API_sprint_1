@@ -8,6 +8,7 @@ from aioredis import Redis
 from elasticsearch import AsyncElasticsearch
 from elasticsearch_dsl import Search, Q
 from fastapi import Depends
+from db.cache import ModelCache
 
 from db.elastic import get_elastic
 from db.redis import get_redis
@@ -18,8 +19,8 @@ FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5
 
 
 class FilmService:
-    def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
-        self.redis = redis
+    def __init__(self, cache: ModelCache, elastic: AsyncElasticsearch):
+        self.cache = cache
         self.elastic = elastic
 
     async def search(self, search_query: str = "",
@@ -39,19 +40,21 @@ class FilmService:
             s = s.sort(sort)
         start = (page_number - 1) * page_size
         query = s[start: start + page_size].to_dict()
-        results = await self.elastic.search(index='movies', body=query)
-
-        return [Film(**hit['_source']) for hit in results['hits']['hits']]
+        films = await self.cache.get_by_elastic_query(query)  # Поиск в кэше
+        if not films:
+            results = await self.elastic.search(index='movies', body=query)
+            films = [Film(**hit['_source']) for hit in results['hits']['hits']]
+            await self.cache.set_by_elastic_query(query, films)
+        return films
 
     async def get_by_id(self, film_id: str) -> Optional[Film]:
-        film = await self._film_from_cache(film_id)
+        film = await self.cache.get_by_id(film_id)
         if not film:
             film = await self._get_film_from_elastic(film_id)
             logger.debug('got film from elastic: %r', film)
             if not film:
                 return None
-            await self._put_film_to_cache(film)
-
+            await self.cache.set_by_id(film_id, film)
         return film
 
     async def _get_film_from_elastic(self, film_id: str) -> Optional[Film]:
@@ -61,24 +64,13 @@ class FilmService:
             return None
         return Film(**doc['_source'])
 
-    async def _film_from_cache(self, film_id: str) -> Optional[Film]:
-        data = await self.redis.get(film_id)
-        if not data:
-            return None
-
-        film = Film.parse_raw(data)
-        return film
-
-    async def _put_film_to_cache(self, film: Film):
-        await self.redis.set(film.id, film.json(), expire=FILM_CACHE_EXPIRE_IN_SECONDS)
-
 
 @cache
 def get_film_service(
         redis: Redis = Depends(get_redis),
         elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> FilmService:
-    return FilmService(redis, elastic)
+    return FilmService(ModelCache(redis, Film, FILM_CACHE_EXPIRE_IN_SECONDS), elastic)
 
 
 T = TypeVar('T')

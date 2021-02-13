@@ -6,13 +6,16 @@ from pydantic import BaseModel
 ObjectId = str
 ObjectName = str
 
+
 def orjson_dumps(v, *, default):
     # orjson.dumps returns bytes, to match standard json.dumps we need to decode
     return orjson.dumps(v, default=default).decode()
 
+
 class IdName(BaseModel):
     id: str
     name: str
+
 
 class Film(BaseModel):
     id: str
