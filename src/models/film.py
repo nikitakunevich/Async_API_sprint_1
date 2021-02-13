@@ -3,13 +3,10 @@ from typing import Optional, List
 import orjson
 from pydantic import BaseModel
 
+from models.utils import orjson_dumps
+
 ObjectId = str
 ObjectName = str
-
-
-def orjson_dumps(v, *, default):
-    # orjson.dumps returns bytes, to match standard json.dumps we need to decode
-    return orjson.dumps(v, default=default).decode()
 
 
 class IdName(BaseModel):

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from functools import cache
-from typing import Optional, List, TypeVar, Callable
+from typing import Any, Optional, List, TypeVar, Callable
 
 import elasticsearch.exceptions
 from aioredis import Redis
@@ -63,6 +63,35 @@ class FilmService:
         except elasticsearch.exceptions.NotFoundError:
             return None
         return Film(**doc['_source'])
+
+    async def get_list(self, film_ids: List[str]) -> List[Film]:
+        films = []
+        not_cached_ids = []
+        while film_ids:
+            film_id = film_ids.pop()
+            film = await self.cache.get_by_id(film_id)
+            if film:
+                films.append(film)
+            else:
+                not_cached_ids.append(film_id)
+
+        if not_cached_ids:
+            not_cached_films = await self._get_multiple_films_from_elastic(not_cached_ids)
+            films.extend(not_cached_films)
+            if not films:
+                return []
+            while not_cached_films:
+                film = not_cached_films.pop()
+                await self.cache.set_by_id(film.id, film)
+        return films
+
+    async def _get_multiple_films_from_elastic(self, film_ids: List[str]) -> Any:
+        try:
+            res = await self.elastic.mget(body={'ids': film_ids}, index='movies')
+            print(res['docs'])
+        except elasticsearch.exceptions.NotFoundError:
+            return None
+        return [Film(**doc['_source']) for doc in res['docs']]
 
 
 @cache
