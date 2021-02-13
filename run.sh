@@ -10,6 +10,7 @@ case $1 in
   ;;
   load_es_index)
     COMMAND="curl  -XPUT http://localhost:9200/movies -H 'Content-Type: application/json' -d @es.schema.json"
+    COMMAND="curl  -XPUT http://localhost:9200/persons -H 'Content-Type: application/json' -d @es.persons.schema.json"
   ;;
   start_etl)
     COMMAND="docker-compose up etl"
