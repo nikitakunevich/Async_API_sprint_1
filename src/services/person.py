@@ -7,12 +7,11 @@ from elasticsearch import AsyncElasticsearch
 from elasticsearch_dsl import Search
 from fastapi import Depends
 
-from core.config import CACHE_TTL
+from config import CACHE_TTL
 from db.cache import ModelCache
-
 from db.elastic import get_elastic
 from db.redis import get_redis
-from models.person import Person
+from db.models import Person
 from services.base import BaseESService
 
 logger = logging.getLogger(__name__)
@@ -33,14 +32,7 @@ class PersonService(BaseESService):
             s = s.query('match', full_name=search_query)
         if sort:
             s = s.sort(sort)
-        start = (page_number - 1) * page_size
-        query = s[start: start + page_size].to_dict()
-        persons = await self.cache.get_by_elastic_query(query)
-        if not persons:
-            results = await self.elastic.search(index=self.index, body=query)
-            persons = [Person(**hit['_source']) for hit in results['hits']['hits']]
-            await self.cache.set_by_elastic_query(query, persons)
-        return persons
+        return await self._search(s, page_number, page_size)
 
 
 @cache
@@ -48,4 +40,4 @@ def get_person_service(
         redis: Redis = Depends(get_redis),
         elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> PersonService:
-    return PersonService(ModelCache(redis, Person, CACHE_TTL), elastic)
+    return PersonService(ModelCache[Person](redis, Person, CACHE_TTL), elastic)

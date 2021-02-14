@@ -54,7 +54,7 @@
           }
         }
       },
-      "film_ids": {
+      "roles": {
         "type": "text",
         "analyzer": "ru_en",
         "fields": {
@@ -63,7 +63,7 @@
           }
         }
       },
-      "roles": {
+      "film_ids": {
         "type": "text",
         "analyzer": "ru_en",
         "fields": {

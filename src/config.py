@@ -1,8 +1,24 @@
 import os
+import logging.config
+
+# Название проекта. Используется в Swagger-документации
+PROJECT_NAME = os.getenv('PROJECT_NAME', 'Films API')
+
+# Настройки Redis
+REDIS_HOST = os.getenv('REDIS_HOST', '127.0.0.1')
+REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
+CACHE_TTL = 60 * 5
+
+# Настройки Elasticsearch
+ES_URL = os.getenv('ES_URL', 'http://127.0.0.1:9200')
+
+# Корень проекта
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 LOG_DEFAULT_HANDLERS = ['console', ]
 
+# Применяем настройки логирования
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -53,3 +69,4 @@ LOGGING = {
         'handlers': LOG_DEFAULT_HANDLERS,
     },
 }
+logging.config.dictConfig(LOGGING)

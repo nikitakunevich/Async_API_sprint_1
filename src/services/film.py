@@ -1,27 +1,25 @@
-import asyncio
 import logging
 from functools import cache
-from typing import Any, Optional, List, TypeVar, Callable
+from typing import Optional, List
 
-import elasticsearch.exceptions
 from aioredis import Redis
 from elasticsearch import AsyncElasticsearch
 from elasticsearch_dsl import Search, Q
 from fastapi import Depends
-from db.cache import ModelCache
 
+from config import CACHE_TTL
+from db.cache import ModelCache
 from db.elastic import get_elastic
+from db.models import Film
 from db.redis import get_redis
-from models.film import Film
+from services.base import BaseESService
 
 logger = logging.getLogger(__name__)
-FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5
 
 
-class FilmService:
-    def __init__(self, cache: ModelCache, elastic: AsyncElasticsearch):
-        self.cache = cache
-        self.elastic = elastic
+class FilmService(BaseESService):
+    model = Film
+    index = 'movies'
 
     async def search(self, search_query: str = "",
                      filter_genre: Optional[str] = None,
@@ -29,7 +27,7 @@ class FilmService:
                      page_number: int = 1,
                      page_size: int = 50) -> List[Film]:
 
-        s = Search(using=self.elastic, index='movies')
+        s = Search(using=self.elastic, index=self.index)
         if search_query:
             multi_match_fields = ["title^4", "description^3", "genres_names^2", "actors_names^4", "writers_names",
                                   "directors_names^3"]
@@ -38,31 +36,7 @@ class FilmService:
             s = s.query('nested', path='genres', query=Q('bool', filter=Q('term', genres__id=filter_genre)))
         if sort:
             s = s.sort(sort)
-        start = (page_number - 1) * page_size
-        query = s[start: start + page_size].to_dict()
-        films = await self.cache.get_by_elastic_query(query)  # Поиск в кэше
-        if not films:
-            results = await self.elastic.search(index='movies', body=query)
-            films = [Film(**hit['_source']) for hit in results['hits']['hits']]
-            await self.cache.set_by_elastic_query(query, films)
-        return films
-
-    async def get_by_id(self, film_id: str) -> Optional[Film]:
-        film = await self.cache.get_by_id(film_id)
-        if not film:
-            film = await self._get_film_from_elastic(film_id)
-            logger.debug('got film from elastic: %r', film)
-            if not film:
-                return None
-            await self.cache.set_by_id(film_id, film)
-        return film
-
-    async def _get_film_from_elastic(self, film_id: str) -> Optional[Film]:
-        try:
-            doc = await self.elastic.get('movies', film_id)
-        except elasticsearch.exceptions.NotFoundError:
-            return None
-        return Film(**doc['_source'])
+        return await self._search(s, page_number, page_size)
 
     async def get_list(self, film_ids: List[str]) -> List[Film]:
         films = []
@@ -76,7 +50,7 @@ class FilmService:
                 not_cached_ids.append(film_id)
 
         if not_cached_ids:
-            not_cached_films = await self._get_multiple_films_from_elastic(not_cached_ids)
+            not_cached_films: List[Film] = await self._get_list_from_elastic(not_cached_ids)
             films.extend(not_cached_films)
             if not films:
                 return []
@@ -85,26 +59,10 @@ class FilmService:
                 await self.cache.set_by_id(film.id, film)
         return films
 
-    async def _get_multiple_films_from_elastic(self, film_ids: List[str]) -> Any:
-        try:
-            res = await self.elastic.mget(body={'ids': film_ids}, index='movies')
-            print(res['docs'])
-        except elasticsearch.exceptions.NotFoundError:
-            return None
-        return [Film(**doc['_source']) for doc in res['docs']]
-
 
 @cache
 def get_film_service(
         redis: Redis = Depends(get_redis),
         elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> FilmService:
-    return FilmService(ModelCache(redis, Film, FILM_CACHE_EXPIRE_IN_SECONDS), elastic)
-
-
-T = TypeVar('T')
-
-
-async def run_in_executor(func: Callable[..., T], *args) -> T:
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, func, *args)
+    return FilmService(ModelCache[Film](redis, Film, CACHE_TTL), elastic)

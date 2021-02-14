@@ -1,9 +1,6 @@
 from typing import Optional, List
 
-import orjson
 from pydantic import BaseModel
-
-from models.utils import orjson_dumps
 
 ObjectId = str
 ObjectName = str
@@ -29,7 +26,21 @@ class Film(BaseModel):
     directors: List[IdName]
     genres: List[IdName]
 
-    class Config:
-        # Заменяем стандартную работу с json на более быструю
-        json_loads = orjson.loads
-        json_dumps = orjson_dumps
+
+class FilmShort(BaseModel):
+    id: str
+    title: str
+    imdb_rating: Optional[float]
+
+
+class Genre(BaseModel):
+    id: str
+    name: str
+    filmworks: List[FilmShort]
+
+
+class Person(BaseModel):
+    id: str
+    full_name: str
+    roles: List[str]
+    film_ids: List[str]
