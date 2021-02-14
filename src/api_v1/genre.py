@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.get('/', response_model=List[GenreDetail])
 async def genres_all(
-        sort: Optional[str] = Query(None, regex1='^-?[a-zA-Z_]+$'),
+        sort: Optional[str] = Query(None, regex='^-?[a-zA-Z_]+$'),
         page_number: int = Query(1, alias='page[number]'),
         page_size: int = Query(50, alias='page[size]'),
         genre_service: GenreService = Depends(get_genre_service)) -> List[GenreDetail]:
