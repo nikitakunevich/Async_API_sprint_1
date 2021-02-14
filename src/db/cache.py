@@ -46,12 +46,12 @@ class ModelCache(Cache):
             return None
         return self._model.parse_raw(data)
 
-    async def get_by_id(self, film_id: str) -> Optional[Film]:
+    async def get_by_id(self, film_id: str) -> Optional[BaseModel]:
         key = f'id:{film_id}'
         data = await self.get(key)
         return self.parse_raw_model(data)
 
-    async def set_by_id(self, film_id: str, value: Film) -> None:
+    async def set_by_id(self, film_id: str, value: BaseModel) -> None:
         key = f'id:{film_id}'
         await self.set(key=key, value=value.json())
 
