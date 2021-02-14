@@ -1,9 +1,9 @@
 import logging
 
 import elasticsearch.exceptions
-from elasticsearch import AsyncElasticsearch
-
 from db.cache import ModelCache
+from elasticsearch import AsyncElasticsearch
+from elasticsearch_dsl.search import Search
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +15,9 @@ class BaseESService:
     def __init__(self, cache: ModelCache, elastic: AsyncElasticsearch):
         self.cache = cache
         self.elastic = elastic
+
+        if not self.model or not self.index:
+            raise ValueError('Must set model and index value')
 
     async def search(self):
         raise NotImplementedError
@@ -35,3 +38,8 @@ class BaseESService:
         except elasticsearch.exceptions.NotFoundError:
             return None
         return self.model(**doc['_source'])
+
+    @staticmethod
+    def _get_paginated_query(search: Search, page_number: int, page_size: int) -> dict:
+        start = (page_number - 1) * page_size
+        return search[start: start + page_size].to_dict()

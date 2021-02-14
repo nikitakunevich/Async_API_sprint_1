@@ -1,12 +1,11 @@
 
-from typing import Any, List, Optional, Type
-from aioredis import Redis
-import logging
-
 import json
+import logging
+from typing import Any, List, Optional, Type
+
+from aioredis import Redis
 from pydantic import BaseModel
 from pydantic.tools import parse_raw_as
-from models.film import Film
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +45,12 @@ class ModelCache(Cache):
             return None
         return self._model.parse_raw(data)
 
-    async def get_by_id(self, film_id: str) -> Optional[Film]:
+    async def get_by_id(self, film_id: str) -> Optional[BaseModel]:
         key = f'id:{film_id}'
         data = await self.get(key)
         return self.parse_raw_model(data)
 
-    async def set_by_id(self, film_id: str, value: Film) -> None:
+    async def set_by_id(self, film_id: str, value: BaseModel) -> None:
         key = f'id:{film_id}'
         await self.set(key=key, value=value.json())
 
