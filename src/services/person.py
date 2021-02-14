@@ -35,8 +35,8 @@ class PersonService(BaseESService):
             s = s.sort(sort)
         start = (page_number - 1) * page_size
         query = s[start: start + page_size].to_dict()
-        films = await self.cache.get_by_elastic_query(query)
-        if not films:
+        persons = await self.cache.get_by_elastic_query(query)
+        if not persons:
             results = await self.elastic.search(index=self.index, body=query)
             persons = [Person(**hit['_source']) for hit in results['hits']['hits']]
             await self.cache.set_by_elastic_query(query, persons)

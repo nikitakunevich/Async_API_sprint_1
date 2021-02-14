@@ -1,4 +1,5 @@
 import logging
+from abc import ABC
 
 import elasticsearch.exceptions
 from elasticsearch import AsyncElasticsearch
@@ -8,7 +9,7 @@ from db.cache import ModelCache
 logger = logging.getLogger(__name__)
 
 
-class BaseESService:
+class BaseESService(ABC):
     model = None
     index = None
 
