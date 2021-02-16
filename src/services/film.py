@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from functools import cache
 from typing import Optional, List
@@ -39,24 +40,19 @@ class FilmService(BaseESService):
         return await self._search(s, page_number, page_size)
 
     async def get_list(self, film_ids: List[str]) -> List[Film]:
-        films = []
-        not_cached_ids = []
-        while film_ids:
-            film_id = film_ids.pop()
-            film = await self.cache.get_by_id(film_id)
-            if film:
-                films.append(film)
-            else:
-                not_cached_ids.append(film_id)
+        films = await asyncio.gather(*[self.cache.get_by_id(film_id) for film_id in film_ids])
 
-        if not_cached_ids:
-            not_cached_films: List[Film] = await self._get_list_from_elastic(not_cached_ids)
-            films.extend(not_cached_films)
-            if not films:
-                return []
-            while not_cached_films:
-                film = not_cached_films.pop()
-                await self.cache.set_by_id(film.id, film)
+        films = [film for film in films if film is not None]
+        film_id_mapping = {film.id: film for film in films}
+        not_cached_ids = [film_id for film_id in film_ids if film_id not in film_id_mapping]
+
+        not_cached_films: List[Film] = await self._get_list_from_elastic(not_cached_ids)
+        if not_cached_films:
+            await asyncio.gather(*[self.cache.set_by_id(film.id, film) for film in not_cached_films])
+        films.extend(not_cached_films)
+        if not films:
+            return []
+
         return films
 
 
