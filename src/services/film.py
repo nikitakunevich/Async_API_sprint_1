@@ -40,7 +40,8 @@ class FilmService(BaseESService):
         return await self._search(s, page_number, page_size)
 
     async def get_list(self, film_ids: List[str]) -> List[Film]:
-        films = await asyncio.gather(*[self.cache.get_by_id(film_id) for film_id in film_ids])
+        # noinspection PyTypeChecker
+        films: List[Optional[Film]] = await asyncio.gather(*[self.cache.get_by_id(film_id) for film_id in film_ids])
 
         films = [film for film in films if film is not None]
         film_id_mapping = {film.id: film for film in films}

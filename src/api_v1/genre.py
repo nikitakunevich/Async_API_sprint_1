@@ -3,9 +3,9 @@ from http import HTTPStatus
 from typing import List, Optional
 from uuid import UUID
 
-import pydantic
 from fastapi import APIRouter, Depends, HTTPException, Query
-from api_v1.models import GenreDetail, FilmShort
+
+from api_v1.models import GenreDetail
 from services.genre import GenreService, get_genre_service
 
 logger = logging.getLogger(__name__)
