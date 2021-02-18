@@ -1,10 +1,10 @@
 import logging
-from http import HTTPStatus
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from api_v1.constants import GENRE_NOT_FOUND
 from api_v1.models import GenreDetail
 from services.genre import GenreService, get_genre_service
 
@@ -22,7 +22,7 @@ async def genres_all(
         sort=sort,
         page_size=page_size, page_number=page_number)
     if not genres:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='genre not found')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=GENRE_NOT_FOUND)
 
     return [GenreDetail.from_db_model(genre) for genre in genres]
 
@@ -34,5 +34,5 @@ async def genre_detail(
 ) -> GenreDetail:
     genre = await genre_service.get_by_id(str(genre_id))
     if not genre:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='genre not found')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=GENRE_NOT_FOUND)
     return GenreDetail.from_db_model(genre)
