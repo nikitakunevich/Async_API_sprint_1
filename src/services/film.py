@@ -9,7 +9,7 @@ from elasticsearch_dsl import Search, Q
 from fastapi import Depends
 
 from config import CACHE_TTL
-from db.cache import ModelCache
+from db.cache import ESModelCache
 from db.elastic import get_elastic
 from db.models import Film
 from db.redis import get_redis
@@ -62,4 +62,4 @@ def get_film_service(
         redis: Redis = Depends(get_redis),
         elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> FilmService:
-    return FilmService(ModelCache[Film](redis, Film, CACHE_TTL), elastic)
+    return FilmService(ESModelCache[Film](redis, Film, CACHE_TTL), elastic)

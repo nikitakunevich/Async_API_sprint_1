@@ -1,6 +1,7 @@
 import json
 import logging
-from typing import Any, List, Optional, TypeVar, Generic
+from abc import ABC, abstractmethod
+from typing import Any, Generic, List, Optional, TypeVar
 
 from aioredis import Redis
 from pydantic.tools import parse_raw_as
@@ -10,7 +11,17 @@ T = TypeVar('T')
 logger = logging.getLogger(__name__)
 
 
-class Cache:
+class AbstractCache(ABC):
+    @abstractmethod
+    async def get(self, key: str) -> Any:
+        pass
+
+    @abstractmethod
+    async def set(self, key: str, value: Any) -> None:
+        pass
+
+
+class RedisCache(AbstractCache):
     def __init__(self, redis: Redis, path: str = '', expire: int = 60 * 5) -> None:
         self._redis = redis
         self._path = path
@@ -35,23 +46,28 @@ class Cache:
         await self._redis.set(full_key, value, expire=self._ttl)
 
 
-class ModelCache(Cache, Generic[T]):
-    def __init__(self, redis: Redis, model: T, ttl: int) -> None:
+class ModelCache:
+    def __init__(self, model: T) -> None:
         self._model = model
-        super().__init__(redis, path=model.__name__, expire=ttl)
+
+
+class ESModelCache(RedisCache, ModelCache, Generic[T]):
+    def __init__(self, redis: Redis, model: T, ttl: int) -> None:
+        ModelCache.__init__(self, model=model)
+        RedisCache.__init__(self, redis, path=model.__name__, expire=ttl)
 
     def parse_raw_model(self, data: Optional[str]) -> Optional[T]:
         if not data:
             return None
         return self._model.parse_raw(data)
 
-    async def get_by_id(self, film_id: str) -> Optional[T]:
-        key = f'id:{film_id}'
+    async def get_by_id(self, instance_id: str) -> Optional[T]:
+        key = f'id:{instance_id}'
         data = await self.get(key)
         return self.parse_raw_model(data)
 
-    async def set_by_id(self, film_id: str, value: T) -> None:
-        key = f'id:{film_id}'
+    async def set_by_id(self, instance_id: str, value: T) -> None:
+        key = f'id:{instance_id}'
         await self.set(key=key, value=value.json())
 
     async def get_by_elastic_query(self, query_elastic: dict) -> Optional[T]:

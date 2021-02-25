@@ -5,7 +5,7 @@ from elasticsearch_dsl.search import Search
 from fastapi import Depends
 
 from config import CACHE_TTL
-from db.cache import ModelCache
+from db.cache import ESModelCache
 from db.elastic import AsyncElasticsearch, get_elastic
 from db.redis import get_redis
 from db.models import Genre
@@ -16,7 +16,7 @@ class GenreService(BaseESService):
     model = Genre
     index = 'genres'
 
-    def __init__(self, cache: ModelCache[Genre], elastic: AsyncElasticsearch):
+    def __init__(self, cache: ESModelCache[Genre], elastic: AsyncElasticsearch):
         super().__init__(cache, elastic)
 
     async def search(
@@ -38,4 +38,4 @@ def get_genre_service(
     redis: Redis = Depends(get_redis),
     elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> GenreService:
-    return GenreService(ModelCache[Genre](redis, Genre, CACHE_TTL), elastic)
+    return GenreService(ESModelCache[Genre](redis, Genre, CACHE_TTL), elastic)
