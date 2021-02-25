@@ -1,5 +1,5 @@
 import logging
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import List
 
 import elasticsearch.exceptions
@@ -7,35 +7,25 @@ import elasticsearch.exceptions
 from elasticsearch import AsyncElasticsearch
 from elasticsearch_dsl.search import Search
 
-from db.cache import ModelCache
+from db.cache import ESModelCache
 
 logger = logging.getLogger(__name__)
 
 
-class BaseESService(ABC):
+class AbstractService(ABC):
     model = None
     index = None
 
-    def __init__(self, cache: ModelCache, elastic: AsyncElasticsearch):
-        self.cache = cache
-        self.elastic = elastic
-
-        if not self.model or not self.index:
-            raise ValueError('Must set model and index value')
-
+    @abstractmethod
     async def search(self):
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     async def get_by_id(self, instance_id: str):
-        instance = await self.cache.get_by_id(instance_id)
-        if not instance:
-            instance = await self._get_from_elastic(instance_id, self.index)
-            logger.debug(f'got {instance.__class__.__name__} from elastic: {instance}')
-            if not instance:
-                return None
-            await self.cache.set_by_id(instance_id, instance)
-        return instance
+        pass
 
+
+class ElasticSearchMixin:
     async def _get_from_elastic(self, instance_id: str, index: str):
         try:
             doc = await self.elastic.get(index, instance_id)
@@ -63,3 +53,28 @@ class BaseESService(ABC):
     def _get_paginated_query(search: Search, page_number: int, page_size: int) -> dict:
         start = (page_number - 1) * page_size
         return search[start: start + page_size].to_dict()
+
+
+class BaseESService(ElasticSearchMixin, AbstractService):
+    model = None
+    index = None
+
+    def __init__(self, cache: ESModelCache, elastic: AsyncElasticsearch):
+        self.cache = cache
+        self.elastic = elastic
+
+        if not self.model or not self.index:
+            raise ValueError('Must set model and index value')
+
+    async def search(self):
+        raise NotImplementedError
+
+    async def get_by_id(self, instance_id: str):
+        instance = await self.cache.get_by_id(instance_id)
+        if not instance:
+            instance = await self._get_from_elastic(instance_id, self.index)
+            logger.debug(f'got {instance.__class__.__name__} from elastic: {instance}')
+            if not instance:
+                return None
+            await self.cache.set_by_id(instance_id, instance)
+        return instance

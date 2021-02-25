@@ -8,7 +8,7 @@ from elasticsearch_dsl import Search
 from fastapi import Depends
 
 from config import CACHE_TTL
-from db.cache import ModelCache
+from db.cache import ESModelCache
 from db.elastic import get_elastic
 from db.redis import get_redis
 from db.models import Person
@@ -40,4 +40,4 @@ def get_person_service(
         redis: Redis = Depends(get_redis),
         elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> PersonService:
-    return PersonService(ModelCache[Person](redis, Person, CACHE_TTL), elastic)
+    return PersonService(ESModelCache[Person](redis, Person, CACHE_TTL), elastic)
